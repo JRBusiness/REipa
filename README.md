@@ -23,15 +23,15 @@ The CLI lands at `target/release/reipa`. The desktop app is `reipa-gui`, and it 
 Run `verify` first to check whether the binary is decrypted:
 
 ```
-reipa verify   MyApp
-reipa info     MyApp
-reipa symbols  MyApp
-reipa strings  MyApp
-reipa objc     MyApp
-reipa classdump MyApp
-reipa swift-types MyApp
-reipa disasm    MyApp 0x100004380
-reipa decompile MyApp 0x100004380
+reipa verify   MyApp.ipa
+reipa info     MyApp.ipa
+reipa symbols  MyApp.ipa
+reipa strings  MyApp.ipa
+reipa objc     MyApp.ipa
+reipa classdump MyApp.ipa
+reipa swift-types MyApp.ipa
+reipa disasm    MyApp.ipa 0x100004380
+reipa decompile MyApp.ipa 0x100004380
 ```
 
 `disasm` and `decompile` take a start address and stop at the function's return or an instruction cap (`--count`, default 256 and 512 respectively).

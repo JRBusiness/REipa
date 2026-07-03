@@ -335,10 +335,22 @@ fn run() -> Result<(), String> {
             let sdata = slice.data;
             let start = parse_addr(&addr)?;
 
+            let next_start = macho
+                .function_starts
+                .iter()
+                .copied()
+                .filter(|&a| a > start)
+                .min();
+
             let mut insns = Vec::new();
             let mut furthest = start;
             let mut cur = start;
             for _ in 0..count {
+                if let Some(ns) = next_start {
+                    if cur >= ns {
+                        break;
+                    }
+                }
                 let off = match macho.vmaddr_to_offset(cur) {
                     Some(o) => o,
                     None => break,
@@ -352,7 +364,7 @@ fn run() -> Result<(), String> {
                 };
                 let insn = reipa_arm64::decode(word, cur);
                 if let reipa_arm64::Flow::Branch(t) | reipa_arm64::Flow::CondBranch(t) = insn.flow {
-                    if t > furthest {
+                    if t > furthest && next_start.is_none_or(|ns| t < ns) {
                         furthest = t;
                     }
                 }
@@ -391,6 +403,7 @@ fn run() -> Result<(), String> {
                 &rblocks,
                 &by_addr,
                 &order,
+                &names,
                 0,
                 order.len(),
                 u64::MAX,
@@ -540,6 +553,10 @@ struct RBlock {
     succ: Vec<u64>,
 }
 
+fn call_name(t: u64, names: &std::collections::HashMap<u64, String>) -> String {
+    names.get(&t).cloned().unwrap_or_else(|| format!("sub_{t:x}"))
+}
+
 enum Term {
     Ret,
     IndirectRet(String),
@@ -559,11 +576,7 @@ fn render_block(
     for ins in &b.insns {
         match &ins.flow {
             Flow::Call(t) => {
-                let n = names
-                    .get(t)
-                    .cloned()
-                    .unwrap_or_else(|| format!("sub_{t:x}"));
-                stmts.push(format!("{n}();"));
+                stmts.push(format!("{}();", call_name(*t, names)));
             }
             Flow::IndirectCall => stmts.push(pseudo(ins)),
             Flow::Return => term = Term::Ret,
@@ -598,6 +611,7 @@ fn structure_emit(
     rb: &[RBlock],
     by: &std::collections::HashMap<u64, usize>,
     order: &[u64],
+    names: &std::collections::HashMap<u64, String>,
     lo: usize,
     hi: usize,
     follow: u64,
@@ -609,7 +623,7 @@ fn structure_emit(
     while i < hi {
         if let Some((e, lcond, exit)) = detect_do_while(rb, by, order, i, hi) {
             out.push(format!("{pad}do {{"));
-            structure_emit(rb, by, order, i, e, exit, ind + 1, out);
+            structure_emit(rb, by, order, names, i, e, exit, ind + 1, out);
             let lpad = "    ".repeat(ind + 1);
             for s in &rb[by[&order[e]]].stmts {
                 out.push(format!("{lpad}{s}"));
@@ -620,7 +634,7 @@ fn structure_emit(
         }
         if let Some((e, wcond, exit)) = detect_while(rb, by, order, i, hi) {
             out.push(format!("{pad}while ({wcond}) {{"));
-            structure_emit(rb, by, order, i + 1, e + 1, order[i], ind + 1, out);
+            structure_emit(rb, by, order, names, i + 1, e + 1, order[i], ind + 1, out);
             out.push(format!("{pad}}}"));
             i = by.get(&exit).copied().unwrap_or(hi);
             continue;
@@ -647,26 +661,36 @@ fn structure_emit(
             }
             Term::Fall => i += 1,
             Term::Goto(t) => {
-                if *t != follow || i + 1 != hi {
+                if !by.contains_key(t) {
+                    out.push(format!("{pad}return {}();", call_name(*t, names)));
+                } else if *t != follow || i + 1 != hi {
                     out.push(format!("{pad}goto L_{t:x};"));
                 }
                 i += 1;
             }
             Term::If { cond, taken } => {
+                if !by.contains_key(taken) {
+                    out.push(format!(
+                        "{pad}if ({cond}) return {}();",
+                        call_name(*taken, names)
+                    ));
+                    i += 1;
+                    continue;
+                }
                 if let Some(plan) = plan_if(rb, by, order, i, hi, *taken, cond) {
                     let inv = invert_cond(cond);
                     match plan {
                         IfPlan::Simple { tidx } => {
                             out.push(format!("{pad}if ({inv}) {{"));
-                            structure_emit(rb, by, order, i + 1, tidx, *taken, ind + 1, out);
+                            structure_emit(rb, by, order, names, i + 1, tidx, *taken, ind + 1, out);
                             out.push(format!("{pad}}}"));
                             i = tidx;
                         }
                         IfPlan::Else { tidx, midx, merge } => {
                             out.push(format!("{pad}if ({inv}) {{"));
-                            structure_emit(rb, by, order, i + 1, tidx, merge, ind + 1, out);
+                            structure_emit(rb, by, order, names, i + 1, tidx, merge, ind + 1, out);
                             out.push(format!("{pad}}} else {{"));
-                            structure_emit(rb, by, order, tidx, midx, merge, ind + 1, out);
+                            structure_emit(rb, by, order, names, tidx, midx, merge, ind + 1, out);
                             out.push(format!("{pad}}}"));
                             i = midx;
                         }
