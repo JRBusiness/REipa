@@ -7,7 +7,7 @@ An iOS Mach-O toolkit written in Rust: a loader, an arm64 disassembler Objective
 ![alt text](image.png)
 ## Why it exists
 
-The usual tools for this job are either slow on the large binaries that ship in modern apps, or they pull in a heavy framework you have to install and manage. ReIPA parses the Mach-O itself, walks the Objective-C and Swift metadata itself, and decodes arm64 itself. On a 300 MB DoorDash binary it dumps every Objective-C class in about a second where `rabin2 -c` takes couple seconds. 
+The usual tools for this job are either slow on the large binaries that ship in modern apps, or they pull in a heavy framework you have to install and manage. ReIPA parses the Mach-O itself, walks the Objective-C and Swift metadata itself, and decodes arm64 itself. On a 300 MB DoorDash binary it dumps every Objective-C class in about couple second where `rabin2 -c` a full minute or 2. 
 
 
 ## Building
