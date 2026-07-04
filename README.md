@@ -20,7 +20,7 @@ IDA Pro, radare2, or LLVM**.
 
 If you need Android instead, see the sister project: **[REapk](https://github.com/JRBusiness/REapk)**.
 
-![ReIPA desktop app screenshot](image.png)
+![ReIPA desktop app screenshot](resources/intro.gif)
 
 <!--
 Keywords: iOS decompiler, Mach-O parser, arm64 disassembler, AArch64,
@@ -49,8 +49,41 @@ two.
 - **Swift metadata recovery:** types and demangling from `__swift5_*`.
 - **Decompiler:** CFG construction, condition recovery, if/else and loop
   structuring, and function naming from Objective-C method implementations.
+- **Whole-binary decompile to a project:** export every function into a clean,
+  navigable multi-folder source tree (see the highlight below).
 - **Native desktop GUI:** searchable class browser, jump-to-decompile,
   syntax-highlighted disassembly and pseudocode, and an optional AI chat panel.
+
+## ★ Whole-binary decompile → a source tree
+
+Point ReIPA at a binary and it decompiles **every function** into a structured,
+navigable project, not one unreadable multi-gigabyte dump:
+
+```
+reipa decompile MyApp.ipa --project ./MyApp.decompiled
+```
+
+```
+MyApp.decompiled/
+├── README.md                       summary + layout guide
+├── manifest.csv                    address, name, file for every function
+├── classes/                        one file per class
+│   ├── NSObject.c
+│   └── FBSDKCoreKit/AEMNetworker.c  Swift types nested under their module
+├── categories/                     Class+Category.c
+└── functions/                      unnamed sub_* functions, bucketed by address
+```
+
+Objective-C and Swift methods are grouped by their owning class, Swift types
+nest under a per-module folder, categories get their own files, and unnamed
+functions stream in address order. On a 300 MB Unity binary that is
+**~1.08 million functions across ~2,700 files in about a minute**, and because
+the unnamed functions stream straight to disk, memory stays flat no matter how
+large the output.
+
+In the desktop app it is one click: **Decompile ▸ Export project**. Individual
+views export too: a single decompiled function, the full `__text` disassembly,
+the Swift type listing, or the `@interface` dump of the classes you tick.
 
 ## How it compares
 
@@ -110,10 +143,13 @@ reipa classdump   MyApp.ipa
 reipa swift-types MyApp.ipa
 reipa disasm      MyApp.ipa 0x100004380
 reipa decompile   MyApp.ipa 0x100004380
+reipa decompile   MyApp.ipa --project ./MyApp.decompiled
 ```
 
 `disasm` and `decompile` take a start address and stop at the function's return
-or an instruction cap (`--count`, default 256 and 512 respectively).
+or an instruction cap (`--count`, default 256 and 512 respectively). For
+`decompile`, pass `--all` to decompile the whole binary to stdout, or
+`--project <DIR>` to write it as a structured multi-folder project.
 
 ### A note on FairPlay
 
