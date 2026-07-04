@@ -424,6 +424,18 @@ impl eframe::App for App {
         self.drain(ctx);
         self.lazy_load(ctx);
 
+        // Keep egui's visuals authoritative to `self.dark`. eframe applies the OS
+        // theme on the first frames, which would otherwise render light while our
+        // state says dark — desyncing the toggle so the button label and the
+        // actual theme end up one click apart.
+        if ctx.style().visuals.dark_mode != self.dark {
+            ctx.set_visuals(if self.dark {
+                egui::Visuals::dark()
+            } else {
+                egui::Visuals::light()
+            });
+        }
+
         egui::TopBottomPanel::top("top").show(ctx, |ui| {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
@@ -449,15 +461,9 @@ impl eframe::App for App {
                     let icon = if self.dark { "☀ Light" } else { "🌙 Dark" };
                     if ui.button(icon).clicked() {
                         self.dark = !self.dark;
-                        ctx.set_visuals(if self.dark {
-                            egui::Visuals::dark()
-                        } else {
-                            egui::Visuals::light()
-                        });
-                        // set_visuals only takes effect next frame; in reactive
-                        // mode nothing schedules that frame, so the theme change
-                        // wouldn't show until the next interaction (a second
-                        // click). Force the follow-up repaint now.
+                        // The sync guard at the top of update() applies the new
+                        // visuals; request the follow-up frame so it happens now
+                        // rather than on the next interaction.
                         ctx.request_repaint();
                     }
                 });
