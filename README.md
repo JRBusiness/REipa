@@ -1,4 +1,4 @@
-# ReIPA
+# REipa
 
 For **APK** please visit https://github.com/JRBusiness/REapk
 
