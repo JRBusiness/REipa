@@ -54,24 +54,13 @@ two.
 - **Native desktop GUI:** searchable class browser, jump-to-decompile,
   syntax-highlighted disassembly and pseudocode, and an optional AI chat panel.
 
-## ★ Whole-binary decompile → a source tree
+## Whole-binary decompile
 
 Point ReIPA at a binary and it decompiles **every function** into a structured,
 navigable project, not one unreadable multi-gigabyte dump:
 
 ```
 reipa decompile MyApp.ipa --project ./MyApp.decompiled
-```
-
-```
-MyApp.decompiled/
-├── README.md                       summary + layout guide
-├── manifest.csv                    address, name, file for every function
-├── classes/                        one file per class
-│   ├── NSObject.c
-│   └── FBSDKCoreKit/AEMNetworker.c  Swift types nested under their module
-├── categories/                     Class+Category.c
-└── functions/                      unnamed sub_* functions, bucketed by address
 ```
 
 Objective-C and Swift methods are grouped by their owning class, Swift types
@@ -85,37 +74,11 @@ In the desktop app it is one click: **Decompile ▸ Export project**. Individual
 views export too: a single decompiled function, the full `__text` disassembly,
 the Swift type listing, or the `@interface` dump of the classes you tick.
 
-## How it compares
-
-|                         | **ReIPA**            | Ghidra              | IDA Pro        |
-| ----------------------- | -------------------- | ------------------- | -------------- |
-| Engine                  | Native Rust          | JVM                 | Native         |
-| Install size            | Single binary        | Multi-GB            | Commercial     |
-| External dependencies   | **None**             | Java                | n/a            |
-| Reads `.ipa` directly   | ✅                   | ❌                  | ❌             |
-| Objective-C class dump  | ✅ (typed ivars)     | partial             | ✅ (plugin)    |
-| Swift metadata          | ✅                   | partial             | partial        |
-| FairPlay detection      | ✅                   | ❌                  | ❌             |
-| Price                   | Free (MIT)           | Free                | $$$            |
 
 ReIPA does not aim to replace a full Ghidra/IDA workflow. It aims to be the
 *fast first pass*: open a 300 MB App Store binary, dump every class, and start
 reading decompiled functions in seconds instead of minutes.
 
-## Benchmarks
-
-Measured against the installed tools through the `reipa-bench` harness. The
-arm64 decoder is validated at **100% decode coverage** against Capstone on full
-App Store binaries.
-
-| Task                         | ReIPA vs baseline    | Baseline tool     |
-| ---------------------------- | -------------------- | ----------------- |
-| Full `__text` disassembly    | **~9-12x faster**    | `llvm-objdump`    |
-| Objective-C class dump       | **~24-44x faster**   | `rabin2 -c`       |
-| Header / load-command info   | **~38-55x faster**   | `rabin2 -I`       |
-
-On a 300 MB DoorDash binary, ReIPA dumps every Objective-C class in a couple of
-seconds where `rabin2 -c` takes a minute or two.
 
 ## Building
 
